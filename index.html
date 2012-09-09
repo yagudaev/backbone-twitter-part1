@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Backbone Twitter</title>
+		<style>
+			.author {
+				text-decoration: underline;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Backbone for Twitter</h1>
+
+		<form id="new-tweet">
+			<label>Author:</label><input id="author-name" name="author-name" type="text" />
+			<label>Status:</label><input id="status-update" name="status-update" type="text" />
+			<button>Post</button>
+		</form>
+		<hr />
+		<div id="tweets-container"></div>
+
+		<script src="/underscore.js"></script>
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
+		<script src="/backbone.js"></script>
+		<script>
+			(function($) {
+				var Tweet = Backbone.Model.extend({
+					defaults: function() {
+						return {
+							author: '',
+							status: ''
+						}
+					}
+				});
+				var TweetsList = Backbone.Collection.extend({
+					model: Tweet
+				});
+				var tweets = new TweetsList();
+
+				var TweetView = Backbone.View.extend({
+					model: new Tweet(),
+					tagName: 'div',
+					events: {
+						'click .edit': 'edit',
+						'click .delete': 'delete',
+						'blur .status': 'close',
+						'keypress .status': 'onEnterUpdate'
+					},
+					initialize: function() {
+						this.template = _.template($('#tweet-template').html());
+					},
+					edit: function(ev) {
+						ev.preventDefault();
+						this.$('.status').attr('contenteditable', true).focus();
+					},
+					close: function(ev) {
+						var status = this.$('.status').text();
+						this.model.set('status', status);
+						this.$('.status').removeAttr('contenteditable');
+					},
+					onEnterUpdate: function(ev) {
+						var self = this;
+						if (ev.keyCode === 13) {
+							this.close();
+							_.delay(function() { self.$('.status').blur() }, 100);
+						}
+					},
+					delete: function(ev) {
+						ev.preventDefault();
+						tweets.remove(this.model);
+					},
+					render: function() {
+						this.$el.html(this.template(this.model.toJSON()));
+						return this;
+					}
+				});
+
+				var TweetsView = Backbone.View.extend({
+					model: tweets,
+					el: $('#tweets-container'),
+					initialize: function() {
+						this.model.on('add', this.render, this);
+						this.model.on('remove', this.render, this);
+					},
+					render: function() {
+						var self = this;
+						self.$el.html('');
+						_.each(this.model.toArray(), function(tweet, i) {
+							self.$el.append((new TweetView({model: tweet})).render().$el);
+						});
+						return this;
+					}
+				});
+
+				$(document).ready(function() {
+					$('#new-tweet').submit(function(ev) {
+						var tweet = new Tweet({ author: $('#author-name').val(), status: $('#status-update').val() });
+						tweets.add(tweet);
+						console.log(tweets.toJSON());
+						
+						return false;		
+					});
+					
+					var appView = new TweetsView();
+				});
+				
+			})(jQuery);
+		</script>
+
+		<!-- Templates -->
+		<script type="text/template" id="tweet-template">
+			<span class="author"><%= author %>:</span>
+			<span class="status"><%= status %></span>
+			<a href="#" class="edit">[edit]</a>
+			<a href="#" class="delete">[delete]</a>
+		</script>
+	</body>
+</html>
