@@ -12,34 +12,25 @@
 	<body>
 		<h1>Backbone for Twitter</h1>
 
-		<form id="new-tweet">
-			<label>Author:</label><input id="author-name" name="author-name" type="text" />
-			<label>Status:</label><input id="status-update" name="status-update" type="text" />
-			<button>Post</button>
-		</form>
-		<hr />
-		<div id="tweets-container"></div>
+		<div id="app"></div>
 
-		<script src="/underscore.js"></script>
-		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
-		<script src="/backbone.js"></script>
+		<script src="underscore.js"></script>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
+		<script src="backbone.js"></script>
 		<script>
 			(function($) {
 				var Tweet = Backbone.Model.extend({
-					defaults: function() {
-						return {
-							author: '',
-							status: ''
-						}
+					defaults: {
+						author: '',
+						status: ''
 					}
 				});
+
 				var TweetsList = Backbone.Collection.extend({
 					model: Tweet
 				});
-				var tweets = new TweetsList();
 
 				var TweetView = Backbone.View.extend({
-					model: new Tweet(),
 					tagName: 'div',
 					events: {
 						'click .edit': 'edit',
@@ -68,7 +59,8 @@
 					},
 					delete: function(ev) {
 						ev.preventDefault();
-						tweets.remove(this.model);
+						this.model.destroy();
+						this.remove();
 					},
 					render: function() {
 						this.$el.html(this.template(this.model.toJSON()));
@@ -77,43 +69,73 @@
 				});
 
 				var TweetsView = Backbone.View.extend({
-					model: tweets,
-					el: $('#tweets-container'),
+					tagName:'div',
+					id: 'tweets-container',
 					initialize: function() {
-						this.model.on('add', this.render, this);
-						this.model.on('remove', this.render, this);
+						this.collection = new TweetsList();
+						this.collection.on('add', this.render, this);
 					},
 					render: function() {
 						var self = this;
 						self.$el.html('');
-						_.each(this.model.toArray(), function(tweet, i) {
-							self.$el.append((new TweetView({model: tweet})).render().$el);
+
+						_.each(this.collection.models, function(tweet) {
+							var tweetView = new TweetView({model: tweet});
+							self.$el.append(tweetView.render().el);
 						});
 						return this;
 					}
 				});
 
+				var AppView = Backbone.View.extend({
+					el: $('#app'),
+					events: {
+						'submit #new-tweet': 'addTweet'
+					},
+					initialize: function() {
+						this.tweetsView = new TweetsView();
+						this.template = _.template($('#form-template').html());
+						this.render();
+					},
+					addTweet: function(ev) {
+						ev.preventDefault();
+						var tweet = new Tweet({ 
+							author: $('#author-name').val(), 
+							status: $('#status-update').val() 
+						});
+						this.tweetsView.collection.add(tweet);
+					},
+					render: function() {
+						this.$el.html(this.template());
+						this.$el.append(this.tweetsView.render().el);
+						return this;
+					}
+				});
+
 				$(document).ready(function() {
-					$('#new-tweet').submit(function(ev) {
-						var tweet = new Tweet({ author: $('#author-name').val(), status: $('#status-update').val() });
-						tweets.add(tweet);
-						console.log(tweets.toJSON());
-						
-						return false;		
-					});
-					
-					var appView = new TweetsView();
+					var appView = new AppView();
 				});
 				
 			})(jQuery);
 		</script>
 
 		<!-- Templates -->
+		<script type="text/template" id="form-template">
+		<form id="new-tweet">
+				<label>Author:</label><input id="author-name" name="author-name" type="text" />
+				<label>Status:</label><input id="status-update" name="status-update" type="text" />
+				<button>Post</button>
+			</form>
+			<hr />
+	 </script>
+
 		<script type="text/template" id="tweet-template">
 			<span class="author"><%= author %>:</span>
 			<span class="status"><%= status %></span>
 			<a href="#" class="edit">[edit]</a>
 			<a href="#" class="delete">[delete]</a>
 		</script>
+
+		
 	</body>
 </html>
